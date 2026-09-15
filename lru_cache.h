@@ -3,39 +3,47 @@
 
 #include <string>
 #include <unordered_map>
-#include <chrono>
+#include <mutex>
 
 struct Node {
     std::string key;
     std::string value;
-    std::chrono::steady_clock::time_point expiry;
-    bool has_ttl;
     Node* prev;
     Node* next;
+
     Node(const std::string& k, const std::string& v)
-        : key(k), value(v), has_ttl(false), prev(nullptr), next(nullptr) {}
+        : key(k), value(v), prev(nullptr), next(nullptr) {}
 };
 
 class LRUCache {
 public:
     explicit LRUCache(size_t capacity);
     ~LRUCache();
+
     bool get(const std::string& key, std::string& value);
-    void set(const std::string& key, const std::string& value, long ttl_seconds = 0);
+    void set(const std::string& key, const std::string& value);
     bool del(const std::string& key);
-    long ttl(const std::string& key);
-    size_t size() const { return map_.size(); }
+    size_t size() const;
 
 private:
     size_t capacity_;
+
+    // Hash map for O(1) average key lookup
     std::unordered_map<std::string, Node*> map_;
+
+    // Doubly linked list:
+    // head_ -> Most Recently Used
+    // tail_ -> Least Recently Used
     Node* head_;
     Node* tail_;
+
+    // Protects the hash map and linked list from concurrent access.
+    mutable std::mutex mutex_;
+
     void addToFront(Node* node);
     void removeNode(Node* node);
     void moveToFront(Node* node);
     void evictIfNeeded();
-    bool isExpired(Node* node) const;
 };
 
 #endif

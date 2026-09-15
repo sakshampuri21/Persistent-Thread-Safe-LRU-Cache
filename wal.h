@@ -3,59 +3,79 @@
 
 #include <string>
 #include <fstream>
+
 #include "lru_cache.h"
 
-// A minimal write-ahead log.
+// Minimal Write-Ahead Log.
 //
-// The idea: memory is fast but volatile — if the process crashes, everything
-// in the LRUCache is gone. The WAL fixes that by appending every write
-// (SET/DEL) to a plain text file BEFORE it's applied in memory. On the next
-// startup, we simply read that file line by line and replay each command
-// into a fresh LRUCache, rebuilding exactly the state we had before the
-// crash.
+// Every modifying operation is written to the WAL before
+// being applied to the in-memory cache.
 //
-// This is intentionally simple: one line per write, flushed immediately.
-// A production WAL would add things like checksums, binary encoding, and
-// periodic compaction — we're demonstrating the core idea, not shipping
-// Postgres.
+// Example:
+//     SET name Saksham
+//     DEL name
+//
+// On program restart, the WAL is replayed to reconstruct
+// the cache state.
 class WriteAheadLog {
 public:
-    explicit WriteAheadLog(const std::string& path) : path_(path) {
-        // Open in append mode: every write goes to the END of the existing
-        // file, never overwriting history from before this run.
+    explicit WriteAheadLog(const std::string& path)
+        : path_(path) {
+
+        // Open the WAL in append mode.
+        // Existing log entries are preserved.
         out_.open(path_, std::ios::app);
     }
 
-    // Call this BEFORE applying a SET to the cache.
-    void logSet(const std::string& key, const std::string& value, long ttl_seconds) {
-        out_ << "SET " << key << " " << value << " " << ttl_seconds << "\n";
-        out_.flush(); // ensure it's actually on disk before we touch memory
-    }
+    // Write a SET operation to the WAL.
+    void logSet(
+        const std::string& key,
+        const std::string& value
+    ) {
+        out_ << "SET "
+              << key << " "
+              << value << "\n";
 
-    // Call this BEFORE applying a DEL to the cache.
-    void logDel(const std::string& key) {
-        out_ << "DEL " << key << "\n";
+        // Flush the stream before updating memory.
         out_.flush();
     }
 
-    // Call this ONCE at startup, before accepting new commands. Reads the
-    // log file from the beginning and replays every write into `cache`,
-    // reconstructing whatever state existed right before the last shutdown
-    // or crash.
+    // Write a DELETE operation to the WAL.
+    void logDel(const std::string& key) {
+        out_ << "DEL "
+              << key << "\n";
+
+        out_.flush();
+    }
+
+    // Replay all previous operations into the cache.
     void replay(LRUCache& cache) {
+
         std::ifstream in(path_);
-        if (!in.is_open()) return; // no log yet — fresh start, nothing to replay
+
+        // No WAL file means there is nothing to recover.
+        if (!in.is_open())
+            return;
 
         std::string cmd;
+
         while (in >> cmd) {
+
             if (cmd == "SET") {
-                std::string key, value;
-                long ttl;
-                in >> key >> value >> ttl;
-                cache.set(key, value, ttl);
-            } else if (cmd == "DEL") {
+
                 std::string key;
+                std::string value;
+
+                in >> key >> value;
+
+                cache.set(key, value);
+
+            } else if (cmd == "DEL") {
+
+                std::string key;
+
                 in >> key;
+
                 cache.del(key);
             }
         }
