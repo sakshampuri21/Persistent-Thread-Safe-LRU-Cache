@@ -2,8 +2,6 @@
 
 LRUCache::LRUCache(size_t capacity)
     : capacity_(capacity) {
-
-    // Dummy/sentinel nodes
     head_ = new Node("", "");
     tail_ = new Node("", "");
 
@@ -21,8 +19,6 @@ LRUCache::~LRUCache() {
     }
 }
 
-// Add a node immediately after head_.
-// This makes it the Most Recently Used node.
 void LRUCache::addToFront(Node* node) {
     node->next = head_->next;
     node->prev = head_;
@@ -31,21 +27,16 @@ void LRUCache::addToFront(Node* node) {
     head_->next = node;
 }
 
-// Remove a node from the doubly linked list.
 void LRUCache::removeNode(Node* node) {
     node->prev->next = node->next;
     node->next->prev = node->prev;
 }
 
-// Move an existing node to the front.
-// The front represents the Most Recently Used position.
 void LRUCache::moveToFront(Node* node) {
     removeNode(node);
     addToFront(node);
 }
 
-// If the cache exceeds its capacity,
-// remove the Least Recently Used node.
 void LRUCache::evictIfNeeded() {
     if (map_.size() <= capacity_)
         return;
@@ -62,15 +53,12 @@ bool LRUCache::get(const std::string& key, std::string& value) {
 
     auto it = map_.find(key);
 
-    // Key does not exist
     if (it == map_.end())
         return false;
 
     Node* node = it->second;
 
-    // Accessing a key makes it Most Recently Used.
     moveToFront(node);
-
     value = node->value;
 
     return true;
@@ -81,28 +69,19 @@ void LRUCache::set(const std::string& key, const std::string& value) {
 
     auto it = map_.find(key);
 
-    // Key already exists
     if (it != map_.end()) {
         Node* node = it->second;
 
         node->value = value;
-
-        // Updating a key also makes it Most Recently Used.
         moveToFront(node);
 
         return;
     }
 
-    // Create a new node
     Node* node = new Node(key, value);
 
-    // Add to hash map
     map_[key] = node;
-
-    // Add to front of LRU list
     addToFront(node);
-
-    // Remove LRU item if capacity is exceeded
     evictIfNeeded();
 }
 
@@ -111,19 +90,13 @@ bool LRUCache::del(const std::string& key) {
 
     auto it = map_.find(key);
 
-    // Key does not exist
     if (it == map_.end())
         return false;
 
     Node* node = it->second;
 
-    // Remove from linked list
     removeNode(node);
-
-    // Remove from hash map
     map_.erase(it);
-
-    // Free memory
     delete node;
 
     return true;

@@ -27,17 +27,10 @@ public:
 
 private:
     size_t capacity_;
-
-    // Hash map for O(1) average key lookup
     std::unordered_map<std::string, Node*> map_;
-
-    // Doubly linked list:
-    // head_ -> Most Recently Used
-    // tail_ -> Least Recently Used
     Node* head_;
     Node* tail_;
 
-    // Protects the hash map and linked list from concurrent access.
     mutable std::mutex mutex_;
 
     void addToFront(Node* node);
