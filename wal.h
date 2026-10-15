@@ -6,9 +6,9 @@
 #include <string>
 
 #ifdef _WIN32
-#include <io.h>        // _commit
+#include <io.h>        
 #else
-#include <unistd.h>    // fsync
+#include <unistd.h>    
 #endif
 
 #include "lru_cache.h"
@@ -17,7 +17,7 @@ class WriteAheadLog {
 public:
     explicit WriteAheadLog(const std::string& path)
         : path_(path) {
-        file_ = std::fopen(path_.c_str(), "a");   // append mode
+        file_ = std::fopen(path_.c_str(), "a");   
     }
 
     ~WriteAheadLog() {
@@ -25,7 +25,6 @@ public:
             std::fclose(file_);
     }
 
-    // Log format:  SET key value expiryMs   (expiryMs = 0 means no TTL)
     void logSet(const std::string& key, const std::string& value,
                 long long expiryMs = 0) {
         std::fprintf(file_, "SET %s %s %lld\n",
@@ -54,7 +53,6 @@ public:
 
                 in >> key >> value >> expiryMs;
 
-                // NEW: skip keys that already expired while the program was off
                 if (expiryMs != 0 && expiryMs <= nowMs())
                     cache.del(key);
                 else
@@ -73,7 +71,7 @@ private:
     std::string path_;
     FILE* file_;
 
-    // NEW: fflush moves data to the OS, fsync forces the OS to write to disk.
+    // fflush moves data to the OS, fsync forces the OS to write to disk.
     void writeToDisk() {
         std::fflush(file_);
 #ifdef _WIN32
