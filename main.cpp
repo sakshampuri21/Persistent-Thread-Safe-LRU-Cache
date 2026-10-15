@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <cstdlib>
 
 #include "lru_cache.h"
 #include "wal.h"
@@ -22,6 +23,7 @@ void printHelp() {
     std::cout
         << "Commands:\n"
         << "  SET key value\n"
+        << "  SETEX key seconds value\n"   // NEW
         << "  GET key\n"
         << "  DEL key\n"
         << "  SIZE\n"
@@ -90,6 +92,25 @@ int main() {
 
             wal.logSet(key, value);
             cache.set(key, value);
+
+            std::cout << "OK\n";
+        }
+        // NEW: SET with expiry
+        else if (cmd == "SETEX") {
+            long long seconds = tokens.size() >= 4
+                                    ? std::atoll(tokens[2].c_str()) : 0;
+
+            if (seconds <= 0) {
+                std::cout << "Usage: SETEX key seconds value\n";
+                continue;
+            }
+
+            std::string key = tokens[1];
+            std::string value = tokens[3];
+            long long expiryMs = nowMs() + seconds * 1000;
+
+            wal.logSet(key, value, expiryMs);
+            cache.set(key, value, expiryMs);
 
             std::cout << "OK\n";
         }

@@ -1,25 +1,41 @@
 #ifndef WRITE_AHEAD_LOG_H
 #define WRITE_AHEAD_LOG_H
 
-#include <string>
+#include <cstdio>
 #include <fstream>
+#include <string>
+
+#ifdef _WIN32
+#include <io.h>        // _commit
+#else
+#include <unistd.h>    // fsync
+#endif
+
 #include "lru_cache.h"
 
 class WriteAheadLog {
 public:
     explicit WriteAheadLog(const std::string& path)
         : path_(path) {
-        out_.open(path_, std::ios::app);
+        file_ = std::fopen(path_.c_str(), "a");   // append mode
     }
 
-    void logSet(const std::string& key, const std::string& value) {
-        out_ << "SET " << key << " " << value << "\n";
-        out_.flush();
+    ~WriteAheadLog() {
+        if (file_)
+            std::fclose(file_);
+    }
+
+    // Log format:  SET key value expiryMs   (expiryMs = 0 means no TTL)
+    void logSet(const std::string& key, const std::string& value,
+                long long expiryMs = 0) {
+        std::fprintf(file_, "SET %s %s %lld\n",
+                     key.c_str(), value.c_str(), expiryMs);
+        writeToDisk();
     }
 
     void logDel(const std::string& key) {
-        out_ << "DEL " << key << "\n";
-        out_.flush();
+        std::fprintf(file_, "DEL %s\n", key.c_str());
+        writeToDisk();
     }
 
     void replay(LRUCache& cache) {
@@ -34,9 +50,15 @@ public:
             if (cmd == "SET") {
                 std::string key;
                 std::string value;
+                long long expiryMs = 0;
 
-                in >> key >> value;
-                cache.set(key, value);
+                in >> key >> value >> expiryMs;
+
+                // NEW: skip keys that already expired while the program was off
+                if (expiryMs != 0 && expiryMs <= nowMs())
+                    cache.del(key);
+                else
+                    cache.set(key, value, expiryMs);
 
             } else if (cmd == "DEL") {
                 std::string key;
@@ -49,7 +71,17 @@ public:
 
 private:
     std::string path_;
-    std::ofstream out_;
+    FILE* file_;
+
+    // NEW: fflush moves data to the OS, fsync forces the OS to write to disk.
+    void writeToDisk() {
+        std::fflush(file_);
+#ifdef _WIN32
+        _commit(_fileno(file_));
+#else
+        fsync(fileno(file_));
+#endif
+    }
 };
 
 #endif
