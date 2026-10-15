@@ -58,7 +58,7 @@ bool LRUCache::get(const std::string& key, std::string& value) {
 
     Node* node = it->second;
 
-    // NEW: lazy TTL check. If the key has expired, delete it and say "not found".
+    // If the key has expired, delete it and say "not found".
     if (node->expiryMs != 0 && nowMs() >= node->expiryMs) {
         removeNode(node);
         map_.erase(it);
@@ -82,13 +82,13 @@ void LRUCache::set(const std::string& key, const std::string& value,
         Node* node = it->second;
 
         node->value = value;
-        node->expiryMs = expiryMs;   // NEW: update expiry too
+        node->expiryMs = expiryMs;   
         moveToFront(node);
 
         return;
     }
 
-    Node* node = new Node(key, value, expiryMs);   // NEW: pass expiry
+    Node* node = new Node(key, value, expiryMs);   
 
     map_[key] = node;
     addToFront(node);

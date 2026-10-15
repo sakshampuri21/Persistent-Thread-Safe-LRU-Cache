@@ -16,7 +16,7 @@ inline long long nowMs() {
 struct Node {
     std::string key;
     std::string value;
-    long long expiryMs;   // NEW: time when key expires. 0 = never expires
+    long long expiryMs;   
     Node* prev;
     Node* next;
 
@@ -31,7 +31,7 @@ public:
 
     bool get(const std::string& key, std::string& value);
     void set(const std::string& key, const std::string& value,
-             long long expiryMs = 0);   // NEW: optional expiry
+             long long expiryMs = 0);   
     bool del(const std::string& key);
     size_t size() const;
 
