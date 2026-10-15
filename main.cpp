@@ -23,7 +23,7 @@ void printHelp() {
     std::cout
         << "Commands:\n"
         << "  SET key value\n"
-        << "  SETEX key seconds value\n"   // NEW
+        << "  SETEX key seconds value\n"  
         << "  GET key\n"
         << "  DEL key\n"
         << "  SIZE\n"
@@ -95,7 +95,7 @@ int main() {
 
             std::cout << "OK\n";
         }
-        // NEW: SET with expiry
+        
         else if (cmd == "SETEX") {
             long long seconds = tokens.size() >= 4
                                     ? std::atoll(tokens[2].c_str()) : 0;
